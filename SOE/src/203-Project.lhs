@@ -7,7 +7,7 @@ uses the following convention:
 -- lines beginning with "|" are also in the text,
      but are often just expressions or code fragments.
 
-> module Robot where
+> module Project where
 >
 > import Array
 > import List

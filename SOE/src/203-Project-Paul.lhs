@@ -6,8 +6,8 @@ uses the following convention:
      but not necessarily executable
 -- lines beginning with "|" are also in the text,
      but are often just expressions or code fragments.
->
-> module Robot where
+
+> module ProjectPaul where
 >
 > import Array
 > import List
