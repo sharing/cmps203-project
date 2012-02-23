@@ -7,11 +7,12 @@ uses the following convention:
 -- lines beginning with "|" are also in the text,
      but are often just expressions or code fragments.
 
-> module ProjectBryan where
+> module Robot where
 >
 > import Array
 > import List
 > import Monad
+> import Control.Monad.State hiding (when)
 > --import Graphics.SOE.Gtk 
 > import SOE
 > import GHC.IO.Handle
@@ -365,10 +366,16 @@ uses the following convention:
 > getUserCommand = do putStr "robot command> "
 >                     getLine
 
-> stringToRobot :: String -> Robot ()
-> stringToRobot strCmd | (strCmd == "left") = turnLeft
->                      | (strCmd == "right") = turnRight
->                      | (strCmd == "fwd") = moven 10
+> stringToRobot :: IO String -> Robot ()
+> stringToRobot ioStr = do ioStr >>= strCmd
+>                          if (strCmd == "left") then turnLeft
+>                          turnRight
+
+-->                       case strCmd of
+-->                         "left" -> turnLeft
+
+-->                      | (strCmd == "right") = turnRight
+-->                      | (strCmd == "fwd") = moven 10
 
 > --commandBot = stringToRobot getUserCommand
 
