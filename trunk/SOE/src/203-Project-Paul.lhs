@@ -15,38 +15,10 @@ uses the following convention:
 > import SOE
 > import Control.Monad.State
 
+> import Data.List.Split --to use, must run in command prompt window "cabal install split"
+> import System.Exit
+
 > -- import qualified GraphicsWindows as GW (getEvent)
-
-< drawSquare
-< = do penDown
-<      move
-<      turnRight
-<      move
-<      turnRight
-<      move
-<      turnRight
-<      move
-
-< cond :: Robot Bool -> Robot a -> Robot a -> Robot a
-
-< evade :: Robot ()
-< evade = cond blocked
-<           (do turnRight
-<               move)
-<           move
-
-> evade :: Robot ()
-> evade = do cond1 blocked turnRight 
->            move
-
-> moveToWall :: Robot ()
-> moveToWall = while (isnt blocked)
->                move
-
-> getCoinsToWall :: Robot ()
-> getCoinsToWall = while (isnt blocked) $
->                    do move
->                       pickCoin
 
 > runRobot :: Robot () -> RobotState -> Grid -> IO ()
 > runRobot (Robot sf) s g
@@ -55,7 +27,7 @@ uses the following convention:
 >               (Just (xWin,yWin)) drawBufferedGraphic
 >        drawGrid w g
 >        drawCoins w s
->        spaceWait w
+>        --spaceWait w
 >        sf s g w
 >        spaceClose w
 
@@ -66,7 +38,19 @@ uses the following convention:
 >                 , facing   = North
 >                 , treasure = tr
 >                 , pocket   = 0
+>				  , exit	 = False
 >                 }
+
+> g0 :: Grid
+> g0 = array ((-size,-size),(size,size))
+>        ([ ((i, size),nb)   | i <- r ] ++
+>         [ ((i,-size),sb)   | i <- r ] ++
+>         [ (( size,i),eb)   | i <- r ] ++
+>         [ ((-size,i),wb)   | i <- r ] ++
+>         [ ((i,j),interior) | i <- r, j <- r ] ++
+>         [ ((size,size), nec),((size,-size), sec),
+>           ((-size,size),nwc),((-size,-size),swc)] )
+>      where r = [1-size .. size-1]
 
 > tr :: [Position]
 > tr = [(x,y) | x <- [-13,-11 .. 1], y <- [9,11 .. 15]]
@@ -84,37 +68,99 @@ uses the following convention:
 >               (twice >> turnRight >> moven n)
 >               (twice >> loop (n+1))
 
+//////////////////////////////////////////////////////////////
 
- data Command = 	| Left 
-					| Right 
-					| Forward Int
+> data Command = Lt
+>            	 | Rt
+>            	 | Fd Int
+>				 | Bk Int
+>				 | Exit
+>				 | No_Op
 
- data Program = 	| Single Command
-					| Seq Program Program
+> data Program = Single Command
+>             	| Sequence Program Program
 					
- main = sim initState
+> main' = sim initRobot initState g0
+ 
+> initState :: RobotState
+> initState = RobotState 
+>				{ position 	= (0,0)
+>                 , pen      = False
+>                 , color    = Blue
+>                 , facing   = North
+>                 , treasure = tr
+>                 , pocket   = 0
+>				  , exit	 = False
+>                }
 
- sim :: P_State -> IO ()
- sim s = do l <- getLine
-			s'<- runProgram (parse l) w s
-			sim s'
-			
+> initRobot :: Robot ()
+> initRobot = penDown >> turnRight >> turnLeft
+
+> sim :: Robot () -> RobotState -> Grid -> IO ()
+> sim (Robot sf) s g = runGraphics $ 
+>				do
+>					w <- openWindowEx "Robot World" (Just (0,0))
+>						(Just (xWin,yWin)) drawBufferedGraphic
+>					drawGrid w g
+>					sim' (Robot sf) s g w
+
+> sim' :: Robot () -> RobotState -> Grid -> Window -> IO ()
+> sim' (Robot sf) s g w = runGraphics $ 
+>				do
+>					cmdStr <- getLine
+>					let cmd = parse (splitOn " " cmdStr)
+>					let s' = run_c cmd s
+>					sf s' g w
+>					printState' s' w
+>					sim' (Robot sf) s' g w
+
+> run_c :: Command -> RobotState -> RobotState
+> run_c (Fd x) s = do  (s {position = newPos})
+>                     where newPos = (movePos' (position s) x (facing s))
+> run_c (Bk x) s = do  (s {position = newPos})
+>                     where newPos = (movePos' (position s) x (facing s))
+> run_c (Lt) s = do (s {facing = left (facing s)})
+> run_c (Rt) s = do (s {facing = right (facing s)})
+> run_c (Exit) s = do (s {exit = True})
+> run_c (No_Op) s = s
+
+> parse :: [String] -> Command
+> parse (c:[]) = case c of
+>				"left" -> (Lt)
+>				"right" -> (Rt)
+>				"exit" -> (Exit)
+>				_ -> (No_Op)
+> parse (cmd:val:tail) = case cmd of
+>				"fwd" -> (Fd (read $ val :: Int))
+>				"backward" -> (Bk (read $ val :: Int))
+>				_ -> (No_Op)
+
+> movePos' :: Position -> Int -> Direction -> Position
+> movePos' (x,y) v d
+>  = case d of
+>      North -> (x,y+v)
+>      South -> (x,y-v)
+>      East  -> (x+v,y)
+>      West  -> (x-v,y)
+
+> printState' :: RobotState -> Window -> IO ()
+> printState' s w
+>  = if (exit s) == True 
+>		then do 
+>				closeWindow w
+>				exitSuccess
+>		else
+>			do 
+>			putStrLn "Current Robot State:"
+>			putStrLn ("  Position:  " ++ show (position s))
+>			putStr ("  Facing:    " ++ show (facing s) ++ "\n\n> ")
+
+///////////////////////////////////////////////////////////////////////////
 	
-					
-> parse :: String -> Robot ()
-> parse w = do k <- getLine
-> 			if k == "forward" then return (moven 1)
->          			else getInput w
-
-> moveByKey :: Robot ()  
-> moveByKey = penDown >> loop 1
->	where loop n = do
->				moven 1
-
 > spaceWait :: Window -> IO ()
 > spaceWait w
 >   = do k <- getLine
->        if k== "up" then return ()
+>        if k== " " then return ()
 >                  else spaceWait w
 
 > moven :: Int -> Robot ()
@@ -128,6 +174,7 @@ uses the following convention:
 >         , color     :: Color
 >         , treasure  :: [Position]
 >         , pocket    :: Int
+>		  , exit	  :: Bool
 >         }
 >      deriving Show
 
@@ -298,17 +345,6 @@ uses the following convention:
 > nec = [South, West]
 > swc = [North, East]
 > sec = [North, West]
-
-> g0 :: Grid
-> g0 = array ((-size,-size),(size,size))
->        ([ ((i, size),nb)   | i <- r ] ++
->         [ ((i,-size),sb)   | i <- r ] ++
->         [ (( size,i),eb)   | i <- r ] ++
->         [ ((-size,i),wb)   | i <- r ] ++
->         [ ((i,j),interior) | i <- r, j <- r ] ++
->         [ ((size,size), nec),((size,-size), sec),
->           ((-size,size),nwc),((-size,-size),swc)] )
->      where r = [1-size .. size-1]
 
 < (//) :: Ix a => Array a b -> [(a,b)] -> Array a b
 
@@ -533,4 +569,35 @@ uses the following convention:
 >        putStrLn ("  Pen Color: " ++ show (color s))
 >        putStrLn ("  Coins at:  " ++ show (treasure s))
 >        putStrLn ("  In Pocket: " ++ show (pocket s))
+
+< drawSquare
+< = do penDown
+<      move
+<      turnRight
+<      move
+<      turnRight
+<      move
+<      turnRight
+<      move
+
+< cond :: Robot Bool -> Robot a -> Robot a -> Robot a
+
+< evade :: Robot ()
+< evade = cond blocked
+<           (do turnRight
+<               move)
+<           move
+
+> evade :: Robot ()
+> evade = do cond1 blocked turnRight 
+>            move
+
+> moveToWall :: Robot ()
+> moveToWall = while (isnt blocked)
+>                move
+
+> getCoinsToWall :: Robot ()
+> getCoinsToWall = while (isnt blocked) $
+>                    do move
+>                       pickCoin
 
