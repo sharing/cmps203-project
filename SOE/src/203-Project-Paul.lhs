@@ -68,6 +68,21 @@ uses the following convention:
 >               (twice >> turnRight >> moven n)
 >               (twice >> loop (n+1))
 
+> drawGrid :: Window -> Grid -> IO ()
+> drawGrid w wld
+>   = let (low@(xMin,yMin),hi@(xMax,yMax)) = bounds wld
+>         (x1,y1) = trans low
+>         (x2,y2) = trans hi
+>     in do 
+>			putStrLn ("before 1")
+>			drawLine w wc (x1-d,y1+d) (x1-d,y2-d)
+>			putStrLn ("after 1")
+>			drawLine w wc (x1-d,y1+d) (x2+d,y1+d)
+>			putStrLn ("after 2")
+>			sequence_ [drawPos w (trans (x,y)) (wld `at` (x,y)) 
+>				| x <- [xMin..xMax], y <- [yMin..yMax]]
+>			putStrLn ("after 3")
+
 //////////////////////////////////////////////////////////////
 
 > data Command = Lt
@@ -94,14 +109,18 @@ uses the following convention:
 >                }
 
 > initRobot :: Robot ()
-> initRobot = penDown >> turnRight >> turnLeft
+> initRobot = penDown
 
 > sim :: Robot () -> RobotState -> Grid -> IO ()
 > sim (Robot sf) s g = runGraphics $ 
 >				do
 >					w <- openWindowEx "Robot World" (Just (0,0))
 >						(Just (xWin,yWin)) drawBufferedGraphic
->					drawGrid w g
+>					--drawGrid w g
+>					sf s g w
+>					putStr "> "
+>					--spaceWait w
+>					--closeWindow w
 >					sim' (Robot sf) s g w
 
 > sim' :: Robot () -> RobotState -> Grid -> Window -> IO ()
@@ -110,9 +129,10 @@ uses the following convention:
 >					cmdStr <- getLine
 >					let cmd = parse (splitOn " " cmdStr)
 >					let s' = run_c cmd s
->					sf s' g w
+>					let Robot sf' = run_c' cmd (Robot sf)
+>					sf' s' g w
 >					printState' s' w
->					sim' (Robot sf) s' g w
+>					sim' (Robot sf') s' g w
 
 > run_c :: Command -> RobotState -> RobotState
 > run_c (Fd x) s = do  (s {position = newPos})
@@ -124,6 +144,14 @@ uses the following convention:
 > run_c (Exit) s = do (s {exit = True})
 > run_c (No_Op) s = s
 
+> run_c' :: Command -> Robot () -> Robot ()
+> run_c' (Fd x) (Robot sf) = moven x
+> run_c' (Bk x) (Robot sf) = moven x
+> run_c' (Lt) (Robot sf) = turnLeft
+> run_c' (Rt) (Robot sf) = turnRight
+> run_c' (Exit) (Robot sf) = exitProgram
+> run_c' (No_Op) (Robot sf) = (Robot sf)
+
 > parse :: [String] -> Command
 > parse (c:[]) = case c of
 >				"left" -> (Lt)
@@ -131,8 +159,8 @@ uses the following convention:
 >				"exit" -> (Exit)
 >				_ -> (No_Op)
 > parse (cmd:val:tail) = case cmd of
->				"fwd" -> (Fd (read $ val :: Int))
->				"backward" -> (Bk (read $ val :: Int))
+>				"forward" -> (Fd (read $ val :: Int))
+>				"backward" -> (Bk $ negate (read $ val :: Int))
 >				_ -> (No_Op)
 
 > movePos' :: Position -> Int -> Direction -> Position
@@ -154,6 +182,9 @@ uses the following convention:
 >			putStrLn "Current Robot State:"
 >			putStrLn ("  Position:  " ++ show (position s))
 >			putStr ("  Facing:    " ++ show (facing s) ++ "\n\n> ")
+
+> exitProgram :: Robot ()
+> exitProgram = updateState (\s -> s {exit = True})
 
 ///////////////////////////////////////////////////////////////////////////
 	
@@ -403,16 +434,6 @@ uses the following convention:
 >                       then loop
 >                       else return ()
 >      loop
-
-> drawGrid :: Window -> Grid -> IO ()
-> drawGrid w wld
->   = let (low@(xMin,yMin),hi@(xMax,yMax)) = bounds wld
->         (x1,y1) = trans low
->         (x2,y2) = trans hi
->     in do drawLine w wc (x1-d,y1+d) (x1-d,y2-d)
->           drawLine w wc (x1-d,y1+d) (x2+d,y1+d)
->           sequence_ [drawPos w (trans (x,y)) (wld `at` (x,y)) 
->                     | x <- [xMin..xMax], y <- [yMin..yMax]]
 
 > drawPos :: Window -> Point -> [Direction] -> IO ()
 > drawPos w (x,y) ds
