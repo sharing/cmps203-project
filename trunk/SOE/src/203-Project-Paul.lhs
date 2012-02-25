@@ -20,17 +20,6 @@ uses the following convention:
 
 > -- import qualified GraphicsWindows as GW (getEvent)
 
-> runRobot :: Robot () -> RobotState -> Grid -> IO ()
-> runRobot (Robot sf) s g
->   = runGraphics $
->     do w <- openWindowEx "Robot World" (Just (0,0)) 
->               (Just (xWin,yWin)) drawBufferedGraphic
->        drawGrid w g
->        drawCoins w s
->        --spaceWait w
->        sf s g w
->        spaceClose w
-
 > s0 :: RobotState
 > s0 = RobotState { position = (0,0)
 >                 , pen      = False
@@ -74,14 +63,22 @@ uses the following convention:
 >         (x1,y1) = trans low
 >         (x2,y2) = trans hi
 >     in do 
->			putStrLn ("before 1")
 >			drawLine w wc (x1-d,y1+d) (x1-d,y2-d)
->			putStrLn ("after 1")
 >			drawLine w wc (x1-d,y1+d) (x2+d,y1+d)
->			putStrLn ("after 2")
 >			sequence_ [drawPos w (trans (x,y)) (wld `at` (x,y)) 
 >				| x <- [xMin..xMax], y <- [yMin..yMax]]
->			putStrLn ("after 3")
+
+> runRobot :: Robot () -> RobotState -> Grid -> IO ()
+> runRobot (Robot sf) s g
+>   = runGraphics $
+>			do w <- openWindowEx "Robot World" (Just (0,0)) 
+>				(Just (xWin,yWin)) drawBufferedGraphic
+>				drawGrid w g
+>				drawCoins w s
+>				spaceWait w
+>				--sf s g w
+>				--spaceClose w
+>				closeWindow w
 
 //////////////////////////////////////////////////////////////
 
@@ -95,18 +92,18 @@ uses the following convention:
 > data Program = Single Command
 >             	| Sequence Program Program
 					
-> main' = sim initRobot initState g0
+> main' = sim initRobot s0 g0
  
-> initState :: RobotState
-> initState = RobotState 
->				{ position 	= (0,0)
->                 , pen      = False
->                 , color    = Blue
->                 , facing   = North
->                 , treasure = tr
->                 , pocket   = 0
->				  , exit	 = False
->                }
+-- > initState :: RobotState
+-- > initState = RobotState 
+-- >				{ position 	= (0,0)
+-- >                 , pen      = False
+-- >                 , color    = Blue
+-- >                 , facing   = North
+-- >                 , treasure = tr
+-- >                 , pocket   = 0
+-- >				  , exit	 = False
+-- >                }
 
 > initRobot :: Robot ()
 > initRobot = penDown
@@ -116,12 +113,12 @@ uses the following convention:
 >				do
 >					w <- openWindowEx "Robot World" (Just (0,0))
 >						(Just (xWin,yWin)) drawBufferedGraphic
->					--drawGrid w g
+>					drawGrid w g
 >					sf s g w
 >					putStr "> "
->					--spaceWait w
->					--closeWindow w
->					sim' (Robot sf) s g w
+>					spaceWait w
+>					closeWindow w
+>					--sim' (Robot sf) s g w
 
 > sim' :: Robot () -> RobotState -> Grid -> Window -> IO ()
 > sim' (Robot sf) s g w = runGraphics $ 
