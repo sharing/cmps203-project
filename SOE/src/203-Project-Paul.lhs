@@ -13,6 +13,7 @@ uses the following convention:
 > import List
 > import Monad
 > import SOE
+> import Control.Monad.State
 
 > -- import qualified GraphicsWindows as GW (getEvent)
 
@@ -47,6 +48,31 @@ uses the following convention:
 >                    do move
 >                       pickCoin
 
+> runRobot :: Robot () -> RobotState -> Grid -> IO ()
+> runRobot (Robot sf) s g
+>   = runGraphics $
+>     do w <- openWindowEx "Robot World" (Just (0,0)) 
+>               (Just (xWin,yWin)) drawBufferedGraphic
+>        drawGrid w g
+>        drawCoins w s
+>        spaceWait w
+>        sf s g w
+>        spaceClose w
+
+> s0 :: RobotState
+> s0 = RobotState { position = (0,0)
+>                 , pen      = False
+>                 , color    = Blue
+>                 , facing   = North
+>                 , treasure = tr
+>                 , pocket   = 0
+>                 }
+
+> tr :: [Position]
+> tr = [(x,y) | x <- [-13,-11 .. 1], y <- [9,11 .. 15]]
+
+> main = runRobot spiral s0 g0
+
 > spiral :: Robot ()
 > spiral = penDown >> loop 1
 >  where loop n =
@@ -58,14 +84,38 @@ uses the following convention:
 >               (twice >> turnRight >> moven n)
 >               (twice >> loop (n+1))
 
-> --spaceWait :: Window -> IO ()
-> --spaceWait w
-> --  = do k <- getLine
-> --      if k== "up" then return ()
-> --                 else spaceWait w
 
-> moveByKey :: IO () -> Robot ()
-> moveByKey = penDown >> moven 1 
+ data Command = 	| Left 
+					| Right 
+					| Forward Int
+
+ data Program = 	| Single Command
+					| Seq Program Program
+					
+ main = sim initState
+
+ sim :: P_State -> IO ()
+ sim s = do l <- getLine
+			s'<- runProgram (parse l) w s
+			sim s'
+			
+	
+					
+> parse :: String -> Robot ()
+> parse w = do k <- getLine
+> 			if k == "forward" then return (moven 1)
+>          			else getInput w
+
+> moveByKey :: Robot ()  
+> moveByKey = penDown >> loop 1
+>	where loop n = do
+>				moven 1
+
+> spaceWait :: Window -> IO ()
+> spaceWait w
+>   = do k <- getLine
+>        if k== "up" then return ()
+>                  else spaceWait w
 
 > moven :: Int -> Robot ()
 > moven n = mapM_ (const move) [1..n]
@@ -359,36 +409,7 @@ uses the following convention:
 > trans :: Position -> Point
 > trans (x,y) = (div xWin 2 + 2*d*x, div yWin 2 - 2*d*y)
 
-> spaceWait :: Window -> IO ()
-> spaceWait w
->   = do k <- getLine
->        if k== "up" then return ()
->                  else spaceWait w
 
-> runRobot :: Robot () -> RobotState -> Grid -> IO ()
-> runRobot (Robot sf) s g
->   = runGraphics $
->     do w <- openWindowEx "Robot World" (Just (0,0)) 
->               (Just (xWin,yWin)) drawBufferedGraphic
->        drawGrid w g
->        drawCoins w s
->        --spaceWait w
->        sf s g w
->        spaceClose w
-
-> s0 :: RobotState
-> s0 = RobotState { position = (0,0)
->                 , pen      = False
->                 , color    = Blue
->                 , facing   = North
->                 , treasure = tr
->                 , pocket   = 0
->                 }
-
-> tr :: [Position]
-> tr = [(x,y) | x <- [-13,-11 .. 1], y <- [9,11 .. 15]]
-
-> main = runRobot moveByKey s0 g0
 
 | cond p (c1 >> c) (c2 >> c)  ===>  cond p c1 c2 >> c 
 | repeat p c  ===>  c >> while p c

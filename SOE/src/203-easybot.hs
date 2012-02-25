@@ -1,5 +1,6 @@
 import Array
-import Data.List.Split
+import Data.List.Split --to use, must run in command prompt window "cabal install split"
+import System.Exit
 
 main = sim initState
 
@@ -7,13 +8,15 @@ data RobotState
   = RobotState 
         { position  :: Position
         , facing    :: Direction
+		, exit		:: Bool
         }
      deriving Show
 
 initState :: RobotState
 initState = RobotState 
-				{ position = (0,0)
-                , facing   = North
+				{ position 	= (0,0)
+                , facing  	= North
+				, exit		= False
                 }
 
 type Position = (Int,Int)
@@ -30,6 +33,7 @@ data Command = Lt
              | Rt
              | Fd Int
 			 | Bk Int
+			 | Exit
 			 | No_Op
 
 data Program = Single Command
@@ -49,13 +53,14 @@ run_c (Bk x) s = do  (s {position = newPos})
                      where newPos = (movePos (position s) x (facing s))
 run_c (Lt) s = do (s {facing = left (facing s)})
 run_c (Rt) s = do (s {facing = right (facing s)})
+run_c (Exit) s = do (s {exit = True})
 run_c (No_Op) s = s
 
 parse :: [String] -> Command
 parse (c:[]) = case c of
 				"left" -> (Lt)
 				"right" -> (Rt)
-				"exit" -> error "\nGoodbye!"
+				"exit" -> (Exit)
 				_ -> (No_Op)
 parse (cmd:val:tail) = case cmd of
 				"fwd" -> (Fd (read $ val :: Int))
@@ -73,8 +78,13 @@ movePos (x,y) v d
 
 printState :: RobotState -> IO ()
 printState s
-  = do putStrLn "Current Robot State:"
-       putStrLn ("  Position:  " ++ show (position s))
-       putStrLn ("  Facing:    " ++ show (facing s))
+  = if (exit s) == True 
+		then exitSuccess
+		else
+			do 
+			putStrLn "Current Robot State:"
+			putStrLn ("  Position:  " ++ show (position s))
+			putStr ("  Facing:    " ++ show (facing s) ++ "\n\n> ")
+	   
 
 
