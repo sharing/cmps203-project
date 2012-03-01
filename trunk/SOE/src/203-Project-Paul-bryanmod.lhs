@@ -84,7 +84,6 @@ uses the following convention:
 > data Program = Single Command
 >             	| Sequence Program Program
 					
-> main' = sim initRobot initState g1
  
 > initState :: RobotState
 > initState = RobotState 
@@ -111,34 +110,32 @@ uses the following convention:
 >        sf s g w
 >        spaceClose w
 
+> main' = do
+>            w <- openWindowEx "Robot World" (Just (0,0))
+>		     (Just (xWin,yWin)) drawGraphic
+>            sim initRobot initState g1 w
 
-> sim :: Robot () -> RobotState -> Grid -> IO ()
-> sim (Robot sf) s g = runGraphics $ 
->				do
->					w <- openWindowEx "Robot World" (Just (0,0))
->						(Just (xWin,yWin)) drawBufferedGraphic
->					drawGrid w g
->                                       drawCoins w s
->					sf s g w
->					putStr "> "
->					--cmdStr <- getLine
->					--spaceWait w
->					--closeWindow w
->					sim' (Robot sf) s g w
->                                       spaceClose w
+> sim :: Robot () -> RobotState -> Grid -> Window -> IO ()
+> sim (Robot sf) s g w = do
+>                                       sim' (Robot sf) s g w
+>                                       sim  (Robot sf) s g w
 
 > sim' :: Robot () -> RobotState -> Grid -> Window -> IO ()
 > sim' (Robot sf) s g w = runGraphics $ 
 >				do
+>                                       clearWindow w
 >					drawGrid w g
 >                                       drawCoins w s
+>                                       --getLBP w
+>                                       --getWindowTick w
+>                                       getWindowEvent w
+>					putStr "> "
 >					cmdStr <- getLine
 >					let cmd = parse (splitOn " " cmdStr)
 >					let s' = run_c cmd s
 >					let Robot sf' = run_c' cmd (Robot sf)
 >                                       sf' s' g w
 >					printState' s' w
->                                       sim' (Robot sf') s' g w
 
 > run_c :: Command -> RobotState -> RobotState
 > run_c (Fd x) s = do  (s {position = newPos})
