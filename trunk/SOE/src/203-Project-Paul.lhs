@@ -129,17 +129,17 @@ uses the following convention:
 -- >                }
 
 > initRobot :: Robot ()
-> initRobot = penDown
+> initRobot = penDown >> moven 1
 
 > sim :: Robot () -> RobotState -> Grid -> Window -> IO ()
 > sim (Robot sf) s g w = runGraphics $ 
 >				do
->					clearWindow w
+>					--clearWindow w
 >					drawGrid w g
 >					--drawCoins w s
 >					--spaceWait w
->					getWindowEvent w
 >					sf s g w
+>					getWindowEvent w
 >					putStr "> "
 >					--k <- getKey w
 >					--closeWindow w
@@ -148,16 +148,27 @@ uses the following convention:
 > sim' :: Robot () -> RobotState -> Grid -> Window -> IO ()
 > sim' (Robot sf) s g w = runGraphics $ 
 >				do
->					clearWindow w
->					drawGrid w g
 >					getWindowEvent w
+>					--clearWindow w
+>					--drawGrid w g
 >					cmdStr <- getLine
 >					let cmd = parse (splitOn " " cmdStr)
 >					let s' = run_c cmd s
->					let Robot sf' = run_c' cmd (Robot sf)
->					sf' s' g w
+>					--let Robot sf' = run_c' cmd (Robot sf)
+>					sf s' g w
+>					--getWindowEvent w
+>					spaceDo cmdStr w
 >					printState' s' w
->					sim' (Robot sf') s' g w
+>					getWindowEvent w
+>					sim' (Robot sf) s' g w
+
+> spaceDo :: String -> Window -> IO ()
+> spaceDo k w
+>   = --do k <- getLine
+>        case k of
+>				_ -> return ()
+>				--" " -> return ()
+>                  --else spaceWait w
 
 > run_c :: Command -> RobotState -> RobotState
 > run_c (Fd x) s = do  (s {position = newPos})
