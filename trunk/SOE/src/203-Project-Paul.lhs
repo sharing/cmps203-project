@@ -44,7 +44,7 @@ uses the following convention:
 > tr :: [Position]
 > tr = [(x,y) | x <- [-13,-11 .. 1], y <- [9,11 .. 15]]
 
-> main = runRobot spiral s0 g0
+> main = runRobot spiral' s0 g0
 
 > spiral :: Robot ()
 > spiral = penDown >> loop 1
@@ -56,6 +56,14 @@ uses the following convention:
 >          in cond blocked 
 >               (twice >> turnRight >> moven n)
 >               (twice >> loop (n+1))
+
+> spiral' :: Robot ()
+> spiral' = do
+>				penDown
+>				turnRight
+>				moven 5
+>				turnRight
+>				moven 5
 
 > drawGrid :: Window -> Grid -> IO ()
 > drawGrid w wld
@@ -71,14 +79,26 @@ uses the following convention:
 > runRobot :: Robot () -> RobotState -> Grid -> IO ()
 > runRobot (Robot sf) s g
 >   = runGraphics $
->			do w <- openWindowEx "Robot World" (Just (0,0)) 
->				(Just (xWin,yWin)) drawBufferedGraphic
->				drawGrid w g
->				drawCoins w s
->				spaceWait w
->				--sf s g w
->				--spaceClose w
->				closeWindow w
+>     do w <- openWindowEx "Robot World" (Just (0,0)) 
+>               (Just (xWin,yWin)) drawBufferedGraphic
+>        drawGrid w g
+>        drawCoins w s
+>        spaceWait w
+>        sf s g w
+>        spaceClose w
+
+> spaceClose :: Window -> IO ()
+> spaceClose w
+>   = do k <- getKey w
+>        if k==' ' || k == '\x0'
+>           then putStr "> "
+>           else spaceClose w
+
+> spaceWait :: Window -> IO ()
+> spaceWait w
+>   = do k <- getLine
+>        if k== " " then return ()
+>                  else spaceWait w
 
 //////////////////////////////////////////////////////////////
 
@@ -92,7 +112,10 @@ uses the following convention:
 > data Program = Single Command
 >             	| Sequence Program Program
 					
-> main' = sim initRobot s0 g0
+> main' = do 
+>			w <- openWindowEx "Robot World" (Just (0,0))
+>				(Just (xWin,yWin)) drawBufferedGraphic
+>			sim initRobot s0 g0 w
  
 -- > initState :: RobotState
 -- > initState = RobotState 
@@ -108,21 +131,26 @@ uses the following convention:
 > initRobot :: Robot ()
 > initRobot = penDown
 
-> sim :: Robot () -> RobotState -> Grid -> IO ()
-> sim (Robot sf) s g = runGraphics $ 
+> sim :: Robot () -> RobotState -> Grid -> Window -> IO ()
+> sim (Robot sf) s g w = runGraphics $ 
 >				do
->					w <- openWindowEx "Robot World" (Just (0,0))
->						(Just (xWin,yWin)) drawBufferedGraphic
+>					clearWindow w
 >					drawGrid w g
+>					--drawCoins w s
+>					--spaceWait w
+>					getWindowEvent w
 >					sf s g w
 >					putStr "> "
->					spaceWait w
->					closeWindow w
->					--sim' (Robot sf) s g w
+>					--k <- getKey w
+>					--closeWindow w
+>					sim' (Robot sf) s g w
 
 > sim' :: Robot () -> RobotState -> Grid -> Window -> IO ()
 > sim' (Robot sf) s g w = runGraphics $ 
 >				do
+>					clearWindow w
+>					drawGrid w g
+>					getWindowEvent w
 >					cmdStr <- getLine
 >					let cmd = parse (splitOn " " cmdStr)
 >					let s' = run_c cmd s
@@ -185,12 +213,6 @@ uses the following convention:
 
 ///////////////////////////////////////////////////////////////////////////
 	
-> spaceWait :: Window -> IO ()
-> spaceWait w
->   = do k <- getLine
->        if k== " " then return ()
->                  else spaceWait w
-
 > moven :: Int -> Robot ()
 > moven n = mapM_ (const move) [1..n]
 
@@ -569,13 +591,6 @@ uses the following convention:
 >   drawInWindowNow w
 >       (withColor White
 >          (polygon [(0,0),(xWin,0),(xWin,yWin),(0,yWin)]))
-
-> spaceClose :: Window -> IO ()
-> spaceClose w
->   = do k <- getKey w
->        if k==' ' || k == '\x0'
->           then closeWindow w
->           else spaceClose w
 
 
 > printState :: RobotState -> IO ()
