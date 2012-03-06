@@ -14,6 +14,7 @@ uses the following convention:
 > import Monad
 > import SOE
 > import Control.Monad.State
+> --import Graphics.HGL.Window
 
 > import Data.List.Split --to use, must run in command prompt window "cabal install split"
 > import System.Exit
@@ -114,9 +115,9 @@ uses the following convention:
 					
 > main' = do 
 >			w <- openWindowEx "Robot World" (Just (0,0))
->				(Just (xWin,yWin)) drawBufferedGraphic
+>				(Just (xWin,yWin)) drawBufferedGraphic --1000
 >			sim initRobot s0 g0 w
- 
+
 -- > initState :: RobotState
 -- > initState = RobotState 
 -- >				{ position 	= (0,0)
@@ -140,6 +141,7 @@ uses the following convention:
 >					--spaceWait w
 >					sf s g w
 >					getWindowEvent w
+>					--getWindowTick w
 >					putStr "> "
 >					--k <- getKey w
 >					--closeWindow w
@@ -148,7 +150,7 @@ uses the following convention:
 > sim' :: Robot () -> RobotState -> Grid -> Window -> IO ()
 > sim' (Robot sf) s g w = runGraphics $ 
 >				do
->					getWindowEvent w
+>					maybeGetWindowEvent w
 >					--clearWindow w
 >					--drawGrid w g
 >					cmdStr <- getLine
@@ -159,7 +161,7 @@ uses the following convention:
 >					--getWindowEvent w
 >					spaceDo cmdStr w
 >					printState' s' w
->					getWindowEvent w
+>					--getWindowEvent w
 >					sim' (Robot sf) s' g w
 
 > spaceDo :: String -> Window -> IO ()
