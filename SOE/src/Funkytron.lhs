@@ -146,7 +146,7 @@ uses the following convention:
 >				"left" -> (Lt)
 >				"right" -> (Rt)
 >				"exit" -> (Exit)
->                               "pick" -> (Pick)
+>				"pick" -> (Pick)
 >				_ -> (No_Op)
 > parse (cmd:val:tail) = case cmd of
 >				"forward" -> (Fd (read $ val :: Int))
@@ -172,8 +172,8 @@ uses the following convention:
 >			putStrLn "Current Robot State:"
 >			putStrLn ("  Position:  " ++ show (position s))
 >			putStrLn ("  Facing:    " ++ show (facing s))
->                       putStrLn ("  Coins:     " ++ show (pocket s))
->                       putStrLn ""
+>			putStrLn ("  Coins:     " ++ show (pocket s))
+>			putStrLn ""
 
 
 ///////////////////////////////////////////////////////////////////////////
