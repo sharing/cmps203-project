@@ -7,7 +7,7 @@ uses the following convention:
 -- lines beginning with "|" are also in the text,
      but are often just expressions or code fragments.
 
-> module ProjectPaul where
+> module Funkytron where
 >
 > import Array
 > import List
@@ -45,7 +45,6 @@ uses the following convention:
 > tr :: [Position]
 > tr = [(x,y) | x <- [-13,-11 .. 1], y <- [9,11 .. 15]]
 
-> main = runRobot spiral' s0 g0
 
 > spiral :: Robot ()
 > spiral = penDown >> loop 1
@@ -66,6 +65,14 @@ uses the following convention:
 >				turnRight
 >				moven 5
 
+> drawPlayer :: Window -> RobotState -> IO ()
+> drawPlayer win state
+>            =   let (x,y) = trans (position state)
+>                --in putStrLn ("x:"++(show x)++" y:"++(show y))
+>                in do drawCircle win cc (x,y) 30 --do drawLine win cc (0,0) (x,y)
+>                  --(withColor cc (line (0,0) (x,y)))
+ 
+
 > drawGrid :: Window -> Grid -> IO ()
 > drawGrid w wld
 >   = let (low@(xMin,yMin),hi@(xMax,yMax)) = bounds wld
@@ -77,16 +84,6 @@ uses the following convention:
 >			sequence_ [drawPos w (trans (x,y)) (wld `at` (x,y)) 
 >				| x <- [xMin..xMax], y <- [yMin..yMax]]
 
-> runRobot :: Robot () -> RobotState -> Grid -> IO ()
-> runRobot (Robot sf) s g
->   = runGraphics $
->     do w <- openWindowEx "Robot World" (Just (0,0)) 
->               (Just (xWin,yWin)) drawBufferedGraphic
->        drawGrid w g
->        drawCoins w s
->        spaceWait w
->        sf s g w
->        spaceClose w
 
 > spaceClose :: Window -> IO ()
 > spaceClose w
@@ -116,53 +113,37 @@ uses the following convention:
 > main' = do 
 >			w <- openWindowEx "Robot World" (Just (0,0))
 >				(Just (xWin,yWin)) drawBufferedGraphic --1000
->			sim initRobot s0 g0 w
+>			sim s0 g0 w
 
--- > initState :: RobotState
--- > initState = RobotState 
--- >				{ position 	= (0,0)
--- >                 , pen      = False
--- >                 , color    = Blue
--- >                 , facing   = North
--- >                 , treasure = tr
--- >                 , pocket   = 0
--- >				  , exit	 = False
--- >                }
-
-> initRobot :: Robot ()
-> initRobot = penDown >> moven 1
-
-> sim :: Robot () -> RobotState -> Grid -> Window -> IO ()
-> sim (Robot sf) s g w = runGraphics $ 
+> sim :: RobotState -> Grid -> Window -> IO ()
+> sim s g w = runGraphics $ 
 >				do
->					--clearWindow w
 >					drawGrid w g
->					--drawCoins w s
+>					drawCoins w s
 >					--spaceWait w
->					sf s g w
+>					--sf s g w
+>                                       drawPlayer w s
 >					getWindowEvent w
 >					--getWindowTick w
 >					putStr "> "
 >					--k <- getKey w
 >					--closeWindow w
->					sim' (Robot sf) s g w
+>					sim' s g w
 
-> sim' :: Robot () -> RobotState -> Grid -> Window -> IO ()
-> sim' (Robot sf) s g w = runGraphics $ 
+> sim' :: RobotState -> Grid -> Window -> IO ()
+> sim' s g w = runGraphics $ 
 >				do
 >					maybeGetWindowEvent w
->					--clearWindow w
->					--drawGrid w g
+>					clearWindow w
 >					cmdStr <- getLine
 >					let cmd = parse (splitOn " " cmdStr)
 >					let s' = run_c cmd s
->					--let Robot sf' = run_c' cmd (Robot sf)
->					sf s' g w
->					--getWindowEvent w
+>					drawGrid w g
+>					drawCoins w s
+>					drawPlayer w s'
 >					spaceDo cmdStr w
 >					printState' s' w
->					--getWindowEvent w
->					sim' (Robot sf) s' g w
+>					sim' s' g w
 
 > spaceDo :: String -> Window -> IO ()
 > spaceDo k w
@@ -448,6 +429,13 @@ uses the following convention:
 > drawLine w c p1 p2
 >   = drawInWindowNow w (withColor c (line p1 p2))
 
+> drawCircle :: Window -> Color -> Point -> Int -> IO ()
+> drawCircle w c center radius
+>            = let (x,y) = center
+>              in 
+>                 --putStrLn ("x:"++(show x)++" y:"++(show y)++" r:"++(show radius))
+>                 drawInWindowNow w (withColor c (ellipse (x-radius,y-radius) (x+radius,y+radius)))
+
 > d :: Int
 > d = 5       -- half the distance between grid points
 
@@ -504,7 +492,6 @@ uses the following convention:
 | repeat p c  ===>  c >> while p c
 | turnTo d >> direction  ===>  return d
 
-> main1 = runRobot treasureHunt s0 g3
 
 > treasureHunt :: Robot ()
 > treasureHunt = do
