@@ -86,7 +86,7 @@ uses the following convention:
 >				 | Bk Int
 >				 | Exit
 >				 | No_Op
->                                | Pick
+>                | Pick
 
 > data Program = Single Command
 >             	| Sequence Program Program
