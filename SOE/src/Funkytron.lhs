@@ -101,7 +101,7 @@ uses the following convention:
 >				do
 >					drawGrid w g
 >					drawCoins w s
->                                       drawPlayer w s
+>					drawPlayer w s
 >					getWindowEvent w
 >					sim' s g w
 
@@ -118,7 +118,7 @@ uses the following convention:
 >					cmdStr <- getLine
 >					let cmd = parse (splitOn " " cmdStr)
 >					let s' = run_c cmd s
->                                       printState' s' w
+>					printState' s' w
 >					--spaceDo cmdStr w
 >					sim' s' g w
 
