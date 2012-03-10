@@ -130,28 +130,55 @@ uses the following convention:
 >				--" " -> return ()
 >                  --else spaceWait w
 
-> run_c :: Command -> RobotState -> RobotState
-> run_c (Fd x) s = do  (s {position = newPos})
->                     where newPos = (movePos' (position s) x (facing s))
-> run_c (Bk x) s = do  (s {position = newPos})
->                     where newPos = (movePos' (position s) x (facing s))
-> run_c (Lt) s = do (s {facing = left (facing s)})
-> run_c (Rt) s = do (s {facing = right (facing s)})
-> run_c (Exit) s = do (s {exit = True})
-> run_c (No_Op) s = s
-> run_c (Pick) s = pickCoin s
+-- > run_c :: Command -> RobotState -> RobotState
+-- > run_c (Fd x) s = do  (s {position = newPos})
+-- >                     where newPos = (movePos' (position s) x (facing s))
+-- > run_c (Bk x) s = do  (s {position = newPos})
+-- >                     where newPos = (movePos' (position s) x (facing s))
+-- > run_c (Lt) s = do (s {facing = left (facing s)})
+-- > run_c (Rt) s = do (s {facing = right (facing s)})
+-- > run_c (Exit) s = do (s {exit = True})
+-- > run_c (No_Op) s = s
+-- > run_c (Pick) s = pickCoin s
 
-> parse :: [String] -> Command
-> parse (c:[]) = case c of
->				"left" -> (Lt)
->				"right" -> (Rt)
->				"exit" -> (Exit)
->				"pick" -> (Pick)
->				_ -> (No_Op)
-> parse (cmd:val:tail) = case cmd of
->				"forward" -> (Fd (read $ val :: Int))
->				"backward" -> (Bk $ negate (read $ val :: Int))
->				_ -> (No_Op)
+> run_c :: [Command] -> RobotState -> RobotState
+> run_c (Fd x:[]) s = do  (s {position = newPos})
+>                     where newPos = (movePos' (position s) x (facing s))
+> run_c (Bk x:[]) s = do  (s {position = newPos})
+>                     where newPos = (movePos' (position s) x (facing s))
+> run_c (Lt:[]) s = do (s {facing = left (facing s)})
+> run_c (Rt:[]) s = do (s {facing = right (facing s)})
+> run_c (Exit:[]) s = do (s {exit = True})
+> run_c (No_Op:[]) s = s
+> run_c (Pick:[]) s = pickCoin s
+> run_c (x:xs) s = run_c [x] (run_c xs s)
+
+-- > parse :: [String] -> Command
+-- > parse (c:[]) = case c of
+-- >				"left" -> (Lt)
+-- >				"right" -> (Rt)
+-- >				"exit" -> (Exit)
+-- >				"pick" -> (Pick)
+-- >				_ -> (No_Op)
+-- > parse (cmd:val:tail) = case cmd of
+-- >				"forward" -> (Fd (read $ val :: Int))
+-- >				"backward" -> (Bk $ negate (read $ val :: Int))
+-- >				_ -> (No_Op)
+
+> parse :: [String] -> [Command]
+> parse (cmd:[]) = case cmd of
+>				"left" -> [Lt]
+>				"right" -> [Rt]
+>				"exit" -> [Exit]
+>				"pick" -> [Pick]
+>				_ -> if (elem '_' cmd)
+>					then parse (splitOn "_" cmd)
+>					else ([No_Op])
+> parse (cmd:val:[]) = case cmd of
+>				"forward" -> [Fd (read $ val :: Int)]
+>				"backward" -> [Bk $ negate (read $ val :: Int)]
+>				_ -> parse [cmd] ++ parse [val]
+> parse (x:xs) = parse [x] ++ parse xs
 
 > movePos' :: Position -> Int -> Direction -> Position
 > movePos' (x,y) v d

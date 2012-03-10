@@ -109,6 +109,7 @@ uses the following convention:
 >				 | Bk Int
 >				 | Exit
 >				 | No_Op
+>				 | Lt_For Int
 
 > data Program = Single Command
 >             	| Sequence Program Program
@@ -159,7 +160,7 @@ uses the following convention:
 >					--let Robot sf' = run_c' cmd (Robot sf)
 >					sf s' g w
 >					--getWindowEvent w
->					spaceDo cmdStr w
+>					--spaceDo cmdStr w
 >					printState' s' w
 >					--getWindowEvent w
 >					sim' (Robot sf) s' g w
@@ -172,15 +173,37 @@ uses the following convention:
 >				--" " -> return ()
 >                  --else spaceWait w
 
-> run_c :: Command -> RobotState -> RobotState
-> run_c (Fd x) s = do  (s {position = newPos})
+> parse :: [String] -> [Command]
+> parse (cmd:[]) = case cmd of
+>				"left" -> [Lt]
+>				"right" -> [Rt]
+>				"exit" -> [Exit]
+>				_ -> if (elem '_' cmd)
+>					then parse (splitOn "_" cmd)
+>					else ([No_Op])
+> parse (cmd:val:[]) = case cmd of
+>				"forward" -> [Fd (read $ val :: Int)]
+>				"backward" -> [Bk $ negate (read $ val :: Int)]
+>				_ -> parse [cmd] ++ parse [val]
+> parse (x:xs) = parse [x] ++ parse xs
+
+
+> run_c :: [Command] -> RobotState -> RobotState
+> run_c (Fd x:[]) s = do  (s {position = newPos})
 >                     where newPos = (movePos' (position s) x (facing s))
-> run_c (Bk x) s = do  (s {position = newPos})
+> run_c (Bk x:[]) s = do  (s {position = newPos})
 >                     where newPos = (movePos' (position s) x (facing s))
-> run_c (Lt) s = do (s {facing = left (facing s)})
-> run_c (Rt) s = do (s {facing = right (facing s)})
-> run_c (Exit) s = do (s {exit = True})
-> run_c (No_Op) s = s
+> run_c (Lt:[]) s = do (s {facing = left (facing s)})
+> run_c (Rt:[]) s = do (s {facing = right (facing s)})
+> run_c (Exit:[]) s = do (s {exit = True})
+> run_c (No_Op:[]) s = s
+> run_c (x:xs) s = run_c [x] (run_c xs s)
+
+
+
+> --run_c (Lt_For 0) s = do (s {facing = left (facing s)}) 
+> --run_c (Lt_For x) s = do (s {facing = left (facing s)})
+> --						run_c (Lt_For (x-1)) s
 
 > run_c' :: Command -> Robot () -> Robot ()
 > run_c' (Fd x) (Robot sf) = moven x
@@ -189,17 +212,6 @@ uses the following convention:
 > run_c' (Rt) (Robot sf) = turnRight
 > run_c' (Exit) (Robot sf) = exitProgram
 > run_c' (No_Op) (Robot sf) = (Robot sf)
-
-> parse :: [String] -> Command
-> parse (c:[]) = case c of
->				"left" -> (Lt)
->				"right" -> (Rt)
->				"exit" -> (Exit)
->				_ -> (No_Op)
-> parse (cmd:val:tail) = case cmd of
->				"forward" -> (Fd (read $ val :: Int))
->				"backward" -> (Bk $ negate (read $ val :: Int))
->				_ -> (No_Op)
 
 > movePos' :: Position -> Int -> Direction -> Position
 > movePos' (x,y) v d
