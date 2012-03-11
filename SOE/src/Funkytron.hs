@@ -22,18 +22,22 @@ s0 = RobotState { position = (0,0)
                 , treasure = tr
                 , enemies  = [(1,1),(3,2),(1,9)]
                 , pocket   = 0
-	        , exit	 = False
+				, exit	 = False
                 , collided  = False
-                , zapped      = False
-                , laserTo = (0,0)
-                , programs = programStorage
+                , zapped    = False
+                , laserTo 	= (0,0)
+                , programs 	= programStorage
                 }
-
+					
 tr :: [Position]
 tr = [(x,y) | x <- [-13,-11 .. 1], y <- [9,11 .. 15]]
 
 programStorage :: ProgramStore
 programStorage = []
+
+--type ProgramStore = [(String,[Command])]
+
+type ProgramStore = [(String,[String])]
 
 --initEnemies :: [Position]
 --initEnemies = [(x,y) | x <- [-13,-11 .. -1], y <- [4,8 .. 16]]
@@ -50,7 +54,6 @@ g0 = array ((-size,-size),(size,size))
      where r = [1-size .. size-1]
 
  
-
 drawGrid :: Window -> Grid -> IO ()
 drawGrid w wld
   = let (low@(xMin,yMin),hi@(xMax,yMax)) = bounds wld
@@ -61,8 +64,6 @@ drawGrid w wld
 		drawLine w wc (x1-d,y1+d) (x2+d,y1+d)
 		sequence_ [drawPos w (trans (x,y)) (wld `at` (x,y)) 
 			| x <- [xMin..xMax], y <- [yMin..yMax]]
-
-
 
 
 spaceClose :: Window -> IO ()
@@ -89,7 +90,7 @@ data Command = Lt
              | Pick
              | ZapCmd
              | Call String -- call program (string:name)
-             | Define String -- define program (string:name)
+             | Define (String,[String]) -- define program (string:name)
           deriving Show
 					
 main' = do 
@@ -102,7 +103,7 @@ sim s g w = runGraphics $
 			do
 				drawGrid w g
 				drawCoins w s
-                                drawEnemies w s
+				drawEnemies w s
 				drawPlayer w s
 				maybeGetWindowEvent w
 				--getWindowEvent w
@@ -116,23 +117,23 @@ sim' s g w = runGraphics $
 				cmdStr <- getLine
 				let cmd = parse (splitOn " " cmdStr)
 				let s' = run_c cmd (s{zapped=False})
-                                let s'' = moveEnemies s'
-                                let s''' = checkCollision s''
+				let s'' = moveEnemies s'
+				let s''' = checkCollision s''
 				printState' s''' w
 				--drawBackground w
 				--clearWindow w
 				--drawGrid w g
 				-- erase
-                                eraseCoins w s
-                                eraseEnemies w s
-                                erasePlayer w s
-                                drawLaser w s Black -- black is the new erase
-                                -- draw
-                                drawCoins w s'''
-                                drawEnemies w s'''
+				eraseCoins w s
+				eraseEnemies w s
+				erasePlayer w s
+				drawLaser w s Black -- black is the new erase
+				-- draw
+				drawCoins w s'''
+				drawEnemies w s'''
 				drawLaser w s''' Cyan
 				drawPlayer w s'''
-                                --spaceDo cmdStr w
+				--spaceDo cmdStr w
 				sim' s''' g w
 
 spaceDo :: String -> Window -> IO ()
@@ -155,10 +156,11 @@ spaceDo k w
 -- run_c (Pick) s = pickCoin s
 
 run_c :: [Command] -> RobotState -> RobotState
-run_c (Define name:[]) s = (s{programs = (programs s)++[("test",[Lt,Lt,Fd 10])]})
-run_c (Call name:[]) s = run_c (getProgramCmdsByName name s) s
-run_c (Define name:xs) s = (s{programs = (programs s)++[(name,xs)]})
-run_c (Call name:xs) s = run_c (getProgramCmdsByName name s) (run_c xs s)
+--run_c (Define name:[]) s = ( s{programs = (programs s)++[("test",[Lt,Lt,Fd 10])]} )
+run_c (Call name:[]) s = run_c (parse (getProgramCmdsByName name s)) s
+--run_c (Define name:xs) s = (s{programs = (programs s)++[(name,xs)]})
+run_c ((Define (name, strings)):xs) s = (s{programs = (programs s)++[(name,strings)]})
+run_c (Call name:xs) s = run_c (parse (getProgramCmdsByName name s)) (run_c xs s)
 run_c (Fd x:[]) s = do  (s {position = newPos})
                     where newPos = (movePos (position s) x (facing s))
 run_c (Bk x:[]) s = do  (s {position = newPos})
@@ -171,8 +173,12 @@ run_c (Pick:[]) s = pickCoin s
 run_c (ZapCmd:[]) s = zapCmd s
 run_c (x:xs) s = run_c [x] (run_c xs s)
 
-getProgramCmdsByName :: String -> RobotState -> [Command]
-getProgramCmdsByName name s = mapMaybe (`lookup` (programs s)) [name] !! 0
+getProgramCmdsByName :: String -> RobotState -> [String]
+getProgramCmdsByName name s = do 
+								p <- mapMaybe (`lookup` (programs s)) [name] 
+								if (p == [])
+								then return []
+								else return p !! 0
 --snd (fromMaybe (Just []) (find (\(n,c)->Bool=name == fst) (programs s)) [])
 
 -- parse :: [String] -> Command
@@ -188,20 +194,23 @@ getProgramCmdsByName name s = mapMaybe (`lookup` (programs s)) [name] !! 0
 -- 			_ -> (No_Op)
 
 parse :: [String] -> [Command]
+parse [] = [No_Op]
 parse (cmd:[]) = case cmd of
 			"left" -> [Lt]
 			"right" -> [Rt]
 			"exit" -> [Exit]
 			"pick" -> [Pick]
-                        "zap" -> [ZapCmd]
+			"zap" -> [ZapCmd]
 			_ -> if (elem '_' cmd)
 				then parse (splitOn "_" cmd)
-				else ([No_Op])
+				else [No_Op]
+parse ("define":val:[]) = [Define (val,["null"])]
+parse ("define":val:xs) = [Define (val,xs)]
 parse (cmd:val:[]) = case cmd of
 			"forward" -> [Fd (read $ val :: Int)]
 			"backward" -> [Bk $ negate (read $ val :: Int)]
-                        "define" -> [Define val]
-                        "call" -> [Call val]
+			--"define" -> [Define val]
+			"call" -> [Call val]
 			_ -> parse [cmd] ++ parse [val]
 parse (x:xs) = parse [x] ++ parse xs
 
@@ -226,7 +235,7 @@ printState' s w
 		putStrLn ("  Facing:    " ++ show (facing s))
 		putStrLn ("  Coins:     " ++ show (pocket s))
 		putStrLn ("  Collision: " ++ show (collided s))
-                putStrLn ("  Programs:  " ++ show (programs s))
+		putStrLn ("  Programs:  " ++ show (programs s))
 		putStrLn ""
 
 
@@ -248,8 +257,6 @@ data RobotState
         , programs  :: ProgramStore
         }
      deriving Show
-
-type ProgramStore = [(String,[Command])]
 
 type Position = (Int,Int)
 
