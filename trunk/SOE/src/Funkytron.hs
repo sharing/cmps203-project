@@ -14,19 +14,65 @@ import System.Exit
 
 -- import qualified GraphicsWindows as GW (getEvent)
 
+printState' :: RobotState -> Window -> IO ()
+printState' s w
+ = if (exit s) == True 
+	then do 
+			closeWindow w
+			exitSuccess
+	else
+		do 
+		putStrLn "Current Robot State:"
+		putStrLn ("  Position:  " ++ show (position s))
+		putStrLn ("  Facing:    " ++ show (facing s))
+		putStrLn ("  Coins:     " ++ show (pocket s))
+		putStrLn ("  Collision: " ++ show (collided s))
+		putStrLn ("  Programs:  " ++ show (programs s))
+		putStrLn ("  Turns:  " ++ show (turns s))
+		putStrLn ("  Moves:  " ++ show (moves s))
+		putStrLn ("  Fuel:  " ++ show (fuel s))
+		putStrLn ""
+
+
+	
+data RobotState 
+   = RobotState 
+        { position  :: Position
+        , facing    :: Direction
+        , pen       :: Bool 
+        , color     :: Color
+        , treasure  :: [Position]
+        , enemies   :: [Position]
+        , pocket    :: Int
+        , turns     :: Int
+        , moves     :: Int
+        , fuel      :: Int
+        , exit	    :: Bool
+        , collided  :: Bool
+        , zapped    :: Bool
+        , laserTo   :: Position
+        , programs  :: ProgramStore
+        , grid :: Grid
+        }
+     deriving Show
+
 s0 :: RobotState
 s0 = RobotState { position = (0,0)
                 , pen      = False
                 , color    = Blue
                 , facing   = North
                 , treasure = tr
-                , enemies  = [(1,1),(3,2),(1,9)]
+                , enemies  = [(-4,-1),(5,3),(1,9)]
                 , pocket   = 0
-				, exit	 = False
+                , turns    = 0
+                , moves    = 0
+                , fuel     = 100
+                , exit	    = False
                 , collided  = False
                 , zapped    = False
-                , laserTo 	= (0,0)
-                , programs 	= programStorage
+                , laserTo   = (0,0)
+                , programs  = programStorage
+                , grid      = g2
                 }
 					
 tr :: [Position]
@@ -54,15 +100,15 @@ g0 = array ((-size,-size),(size,size))
      where r = [1-size .. size-1]
 
  
-drawGrid :: Window -> Grid -> IO ()
+drawGrid :: Window -> RobotState -> IO ()
 drawGrid w wld
-  = let (low@(xMin,yMin),hi@(xMax,yMax)) = bounds wld
+  = let (low@(xMin,yMin),hi@(xMax,yMax)) = bounds (grid wld)
         (x1,y1) = trans low
         (x2,y2) = trans hi
     in do 
 		drawLine w wc (x1-d,y1+d) (x1-d,y2-d)
 		drawLine w wc (x1-d,y1+d) (x2+d,y1+d)
-		sequence_ [drawPos w (trans (x,y)) (wld `at` (x,y)) 
+		sequence_ [drawPos w (trans (x,y)) ((grid wld) `at` (x,y)) 
 			| x <- [xMin..xMax], y <- [yMin..yMax]]
 
 
@@ -96,21 +142,22 @@ data Command = Lt
 main' = do 
 		w <- openWindowEx "Robot World" (Just (0,0))
 			(Just (xWin,yWin)) drawBufferedGraphic --1000
-		sim s0 g0 w
+		sim s0 w
 
-sim :: RobotState -> Grid -> Window -> IO ()
-sim s g w = runGraphics $ 
+sim :: RobotState -> Window -> IO ()
+sim s w = runGraphics $ 
 			do
-				drawGrid w g
+				drawGrid w s
 				drawCoins w s
 				drawEnemies w s
 				drawPlayer w s
+				printState' s w
 				maybeGetWindowEvent w
 				--getWindowEvent w
-				sim' s g w
+				sim' s w
 
-sim' :: RobotState -> Grid -> Window -> IO ()
-sim' s g w = runGraphics $ 
+sim' :: RobotState -> Window -> IO ()
+sim' s w = runGraphics $ 
 			do
 				maybeGetWindowEvent w
 				putStr "> "
@@ -122,19 +169,19 @@ sim' s g w = runGraphics $
 				printState' s''' w
 				--drawBackground w
 				--clearWindow w
-				--drawGrid w g
 				-- erase
 				eraseCoins w s
 				eraseEnemies w s
 				erasePlayer w s
 				drawLaser w s Black -- black is the new erase
 				-- draw
+				drawGrid w s'''
 				drawCoins w s'''
 				drawEnemies w s'''
 				drawLaser w s''' Cyan
 				drawPlayer w s'''
 				--spaceDo cmdStr w
-				sim' s''' g w
+				sim' s''' w
 
 spaceDo :: String -> Window -> IO ()
 spaceDo k w
@@ -162,9 +209,9 @@ run_c (Call name:[]) s = run_c (parse (getProgramCmdsByName name s)) s
 run_c ((Define (name, strings)):xs) s = (s{programs = (programs s)++[(name,strings)]})
 run_c (Call name:xs) s = run_c (parse (getProgramCmdsByName name s)) (run_c xs s)
 run_c (Fd x:[]) s = do  (s {position = newPos})
-                    where newPos = (movePos (position s) x (facing s))
+                    where newPos = (movePos (position s) x (facing s) (grid s))
 run_c (Bk x:[]) s = do  (s {position = newPos})
-                    where newPos = (movePos (position s) x (facing s))
+                    where newPos = (movePos (position s) x (facing s) (grid s))
 run_c (Lt:[]) s = do (s {facing = left (facing s)})
 run_c (Rt:[]) s = do (s {facing = right (facing s)})
 run_c (Exit:[]) s = do (s {exit = True})
@@ -214,49 +261,17 @@ parse (cmd:val:[]) = case cmd of
 			_ -> parse [cmd] ++ parse [val]
 parse (x:xs) = parse [x] ++ parse xs
 
-movePos :: Position -> Int -> Direction -> Position
-movePos (x,y) v d
- = case d of
-     North -> (x,y+v)
-     South -> (x,y-v)
-     East  -> (x+v,y)
-     West  -> (x-v,y)
-
-printState' :: RobotState -> Window -> IO ()
-printState' s w
- = if (exit s) == True 
-	then do 
-			closeWindow w
-			exitSuccess
-	else
-		do 
-		putStrLn "Current Robot State:"
-		putStrLn ("  Position:  " ++ show (position s))
-		putStrLn ("  Facing:    " ++ show (facing s))
-		putStrLn ("  Coins:     " ++ show (pocket s))
-		putStrLn ("  Collision: " ++ show (collided s))
-		putStrLn ("  Programs:  " ++ show (programs s))
-		putStrLn ""
+movePos :: Position -> Int -> Direction -> Grid -> Position
+movePos (x,y) v d g | (blocked (x,y) d g) == True = (x,y)
+                    | v <= 0 = (x,y)
+                    | otherwise = case d of
+                            North -> movePos (x,y+1) (v-1) d g
+                            South -> movePos (x,y-1) (v-1) d g
+                            East  -> movePos (x+1,y) (v-1) d g
+                            West  -> movePos (x-1,y) (v-1) d g
 
 
 -- ///////////////////////////////////////////////////////////////////////////
-	
-data RobotState 
-   = RobotState 
-        { position  :: Position
-        , facing    :: Direction
-        , pen       :: Bool 
-        , color     :: Color
-        , treasure  :: [Position]
-        , enemies   :: [Position]
-        , pocket    :: Int
-        , exit	    :: Bool
-        , collided  :: Bool
-        , zapped    :: Bool
-        , laserTo   :: Position
-        , programs  :: ProgramStore
-        }
-     deriving Show
 
 type Position = (Int,Int)
 
@@ -455,7 +470,7 @@ collisionBetween pos (enemy:enemies) = if (pos == enemy) then True else collisio
 collisionBetween pos [] = False
 
 zapCmd :: RobotState -> RobotState
-zapCmd s = (s{zapped=True,laserTo=(movePos (position s) 10 (facing s))})
+zapCmd s = (s{zapped=True,laserTo=(movePos (position s) 10 (facing s) (grid s))})
 
 pickCoin :: RobotState -> RobotState
 pickCoin s | onCoin s = (s {treasure = position s `delete` treasure s,
