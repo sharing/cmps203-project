@@ -153,7 +153,6 @@ sim s w = runGraphics $
 				drawPlayer w s
 				printState' s w
 				maybeGetWindowEvent w
-				--getWindowEvent w
 				sim' s w
 
 sim' :: RobotState -> Window -> IO ()
@@ -167,8 +166,6 @@ sim' s w = runGraphics $
 				let s'' = moveEnemies s'
 				let s''' = checkCollision s''
 				printState' s''' w
-				--drawBackground w
-				--clearWindow w
 				-- erase
 				eraseCoins w s
 				eraseEnemies w s
@@ -180,7 +177,6 @@ sim' s w = runGraphics $
 				drawEnemies w s'''
 				drawLaser w s''' Cyan
 				drawPlayer w s'''
-				--spaceDo cmdStr w
 				sim' s''' w
 
 spaceDo :: String -> Window -> IO ()
@@ -191,27 +187,14 @@ spaceDo k w
 			--" " -> return ()
                  --else spaceWait w
 
--- run_c :: Command -> RobotState -> RobotState
--- run_c (Fd x) s = do  (s {position = newPos})
---                     where newPos = (movePos (position s) x (facing s))
--- run_c (Bk x) s = do  (s {position = newPos})
---                     where newPos = (movePos (position s) x (facing s))
--- run_c (Lt) s = do (s {facing = left (facing s)})
--- run_c (Rt) s = do (s {facing = right (facing s)})
--- run_c (Exit) s = do (s {exit = True})
--- run_c (No_Op) s = s
--- run_c (Pick) s = pickCoin s
-
 run_c :: [Command] -> RobotState -> RobotState
---run_c (Define name:[]) s = ( s{programs = (programs s)++[("test",[Lt,Lt,Fd 10])]} )
 run_c (Call name:[]) s = run_c (parse (getProgramCmdsByName name s)) s
---run_c (Define name:xs) s = (s{programs = (programs s)++[(name,xs)]})
 run_c ((Define (name, strings)):xs) s = (s{programs = (programs s)++[(name,strings)]})
 run_c (Call name:xs) s = run_c (parse (getProgramCmdsByName name s)) (run_c xs s)
 run_c (Fd x:[]) s = do  (s {position = newPos})
                     where newPos = (movePos (position s) x (facing s) (grid s))
 run_c (Bk x:[]) s = do  (s {position = newPos})
-                    where newPos = (movePos (position s) x (facing s) (grid s))
+                    where newPos = (movePos (position s) (negate x) (facing s) (grid s))
 run_c (Lt:[]) s = do (s {facing = left (facing s)})
 run_c (Rt:[]) s = do (s {facing = right (facing s)})
 run_c (Exit:[]) s = do (s {exit = True})
@@ -228,18 +211,6 @@ getProgramCmdsByName name s = do
 								else return p !! 0
 --snd (fromMaybe (Just []) (find (\(n,c)->Bool=name == fst) (programs s)) [])
 
--- parse :: [String] -> Command
--- parse (c:[]) = case c of
--- 			"left" -> (Lt)
--- 			"right" -> (Rt)
--- 			"exit" -> (Exit)
--- 			"pick" -> (Pick)
--- 			_ -> (No_Op)
--- parse (cmd:val:tail) = case cmd of
--- 			"forward" -> (Fd (read $ val :: Int))
--- 			"backward" -> (Bk $ negate (read $ val :: Int))
--- 			_ -> (No_Op)
-
 parse :: [String] -> [Command]
 parse [] = [No_Op]
 parse (cmd:[]) = case cmd of
@@ -255,20 +226,18 @@ parse ("define":val:[]) = [Define (val,["null"])]
 parse ("define":val:xs) = [Define (val,xs)]
 parse (cmd:val:[]) = case cmd of
 			"forward" -> [Fd (read $ val :: Int)]
-			"backward" -> [Bk $ negate (read $ val :: Int)]
-			--"define" -> [Define val]
+			"backward" -> [Bk (read $ val :: Int)]
 			"call" -> [Call val]
 			_ -> parse [cmd] ++ parse [val]
 parse (x:xs) = parse [x] ++ parse xs
 
 movePos :: Position -> Int -> Direction -> Grid -> Position
 movePos (x,y) v d g | (blocked (x,y) d g) == True = (x,y)
-                    | v <= 0 = (x,y)
                     | otherwise = case d of
-                            North -> movePos (x,y+1) (v-1) d g
-                            South -> movePos (x,y-1) (v-1) d g
-                            East  -> movePos (x+1,y) (v-1) d g
-                            West  -> movePos (x-1,y) (v-1) d g
+                            North ->  (x,y+v) 
+                            South ->  (x,y-v) 
+                            East  ->  (x+v,y) 
+                            West  ->  (x-v,y) 
 
 
 -- ///////////////////////////////////////////////////////////////////////////
